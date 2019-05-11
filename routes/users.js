@@ -19,12 +19,12 @@ const client = qn.create({
 // 登陆接口
 router.post('/login', async (req, res) => {
 
-    let {userName, userPwd} = req.body;
-    const doc = await User.findOne({userName, userPwd});
+    let { userName, userPwd } = req.body;
+    const doc = await User.findOne({ userName, userPwd });
 
     try {
         if (doc) {
-            const {userId, name, avatar} = doc
+            const { userId, name, avatar } = doc
             res.cookie("userId", userId, {
                 path: '/',
                 maxAge: 1000 * 60 * 60
@@ -69,9 +69,9 @@ router.post('/loginOut', (req, res) => {
 
 // 注册账号
 router.post('/register', async (req, res) => {
-    const {userName, userPwd} = req.body;
+    const { userName, userPwd } = req.body;
     try {
-        const doc = await User.findOne({userName})
+        const doc = await User.findOne({ userName })
         if (doc) {
             res.json({
                 status: '1',
@@ -110,22 +110,22 @@ router.post('/register', async (req, res) => {
 })
 
 // 上传图片
-router.post('/upload',  (req, res, next) => {
+router.post('/upload', (req, res, next) => {
     // 图片数据流
     var imgData = req.body.imgData;
     // 构建图片名
     var fileName = Date.now() + '.png';
     // 构建图片路径
-    var filePath = './image/' + fileName;
+    var filePath = 'public/images/' + fileName;
     // 过滤data:URL
     var base64Data = imgData.replace(/^data:image\/\w+;base64,/, "");
     var dataBuffer = new Buffer(base64Data, 'base64');
     try {
         fs.writeFile(filePath, dataBuffer, function (err) {
             if (err) {
-                res.end(JSON.stringify({status: '102', msg: '文件写入失败'}));
+                res.end(JSON.stringify({ status: '102', msg: '文件写入失败' }));
             } else {
-                client.uploadFile(filePath, {key: `/avatar/${fileName}`}, function (err1, result) {
+                client.uploadFile(filePath, { key: `/avatar/${fileName}` }, function (err1, result) {
 
                     res.json({
                         status: '0',
@@ -134,12 +134,13 @@ router.post('/upload',  (req, res, next) => {
                         },
                         msg: 'suc'
                     })
-                    
+
                     // 上传之后删除本地文件
-                    fs.unlinkSync(filePath);
+                    // fs.unlinkSync(filePath);
                 });
             }
         })
+        //更新人头像的url
     } catch (err) {
         res.json({
             status: '1',
@@ -154,7 +155,7 @@ router.post('/updateheadimage', function (req, res, next) {
     var userId = req.cookies.userId;
     var imageSrc = req.body.imageSrc;
     if (userId && imageSrc) {
-        User.update({"userId": userId},
+        User.update({ "userId": userId },
             {
                 "avatar": imageSrc
             }, (err, doc) => {
@@ -183,17 +184,78 @@ router.post('/updateheadimage', function (req, res, next) {
 
 // 获取用户信息
 router.post('/userInfo', async (req, res) => {
-    const {userId} = req.cookies
+    const { userId } = req.cookies
+    let params = req.body
+    let act = params.act
     if (userId) {
-        let {name, avatar} = await  User.findOne({userId})
+        if (act == 'delete'){
+            await User.deleteOne({ userId: params.userId });
+            res.json({
+                status: 0,
+                msg: 'suc',
+                result: {
+                   
+                }
+            })
+            return
+        }
+            
+        if (act == 'update') {
+            let user = await User.findOne({userId: params.userId });
+            user.avatar = params.avatar
+            user.name = params.name
+            user.userName = params.userName
+            User.update({
+                userId:params.userId
+            }, user, (err, doc) => {
+                if (err) {
+                    res.json({
+                        status: '1',
+                        msg: err.message,
+                        result: ''
+                    });
+                } else {
+                    res.json({
+                        status: '0',
+                        msg: '',
+                        result: 'suc'
+                    });
+                }
+            })
+            // await User.updateOne(user)
+        }
+        else{
+            let user = await User.findOne({ userId })
+            res.json({
+                status: 0,
+                msg: 'suc',
+                result:user
+            })
+        }
+           
+    } else {
         res.json({
-            status: 0,
-            msg: 'suc',
-            result: {
-                name,
-                avatar
-            }
+            status: 1,
+            msg: '未登录',
+            result: ''
         })
+    }
+})
+
+// 获取用户信息
+router.post('/userInfoList', async (req, res) => {
+    const { userId } = req.cookies
+    if (userId) {
+        let { name, avatar, userName } = await User.findOne({ userId })
+        if ('admin' == userName) {
+            let userInfoList = await User.find()
+            res.json({
+                status: 0,
+                msg: 'suc',
+                result: userInfoList
+            })
+        }
+
     } else {
         res.json({
             status: 1,
@@ -205,12 +267,12 @@ router.post('/userInfo', async (req, res) => {
 
 // 获取购物车
 router.post('/cartList', async (req, res) => {
-    const {userId} = req.cookies;
+    const { userId } = req.cookies;
     if (userId) {
         // 去查用户名下的
-        const userDoc = await User.findOne({userId});
+        const userDoc = await User.findOne({ userId });
         if (userDoc) {
-            const {cartList} = userDoc
+            const { cartList } = userDoc
             res.json({
                 status: '1',
                 msg: "suc",
@@ -244,23 +306,23 @@ router.post('/cartEdit', function (req, res) {
             "userId": userId,
             "cartList.productId": productId
         }, {
-            "cartList.$.productNum": productNum,
-            "cartList.$.checked": checked,
-        }, (err, doc) => {
-            if (err) {
-                res.json({
-                    status: '1',
-                    msg: err.message,
-                    result: ''
-                });
-            } else {
-                res.json({
-                    status: '0',
-                    msg: '',
-                    result: 'suc'
-                });
-            }
-        })
+                "cartList.$.productNum": productNum,
+                "cartList.$.checked": checked,
+            }, (err, doc) => {
+                if (err) {
+                    res.json({
+                        status: '1',
+                        msg: err.message,
+                        result: ''
+                    });
+                } else {
+                    res.json({
+                        status: '0',
+                        msg: '',
+                        result: 'suc'
+                    });
+                }
+            })
     }
 
 })
@@ -309,26 +371,26 @@ router.post('/cartDel', function (req, res) {
     User.update({
         userId
     }, {
-        $pull: {
-            'cartList': {
-                'productId': productId
+            $pull: {
+                'cartList': {
+                    'productId': productId
+                }
             }
-        }
-    }, function (err, doc) {
-        if (err) {
-            res.json({
-                status: '1',
-                msg: err.message,
-                result: ''
-            });
-        } else {
-            res.json({
-                status: '0',
-                msg: '',
-                result: 'suc'
-            });
-        }
-    })
+        }, function (err, doc) {
+            if (err) {
+                res.json({
+                    status: '1',
+                    msg: err.message,
+                    result: ''
+                });
+            } else {
+                res.json({
+                    status: '0',
+                    msg: '',
+                    result: 'suc'
+                });
+            }
+        })
 })
 // 获取地址
 router.post('/addressList', function (req, res) {
@@ -413,24 +475,24 @@ router.post('/addressUpdate', function (req, res) {
                     User.update({
                         "addressList.addressId": addressId
                     }, {
-                        "addressList.$.userName": userName,
-                        "addressList.$.tel": tel,
-                        "addressList.$.streetName": streetName
-                    }, (err2, doc2) => {
-                        if (err2) {
-                            res.json({
-                                status: '0',
-                                msg: err2.message,
-                                result: ''
-                            })
-                        } else {
-                            res.json({
-                                status: '0',
-                                msg: 'suc2',
-                                result: ''
-                            })
-                        }
-                    })
+                            "addressList.$.userName": userName,
+                            "addressList.$.tel": tel,
+                            "addressList.$.streetName": streetName
+                        }, (err2, doc2) => {
+                            if (err2) {
+                                res.json({
+                                    status: '0',
+                                    msg: err2.message,
+                                    result: ''
+                                })
+                            } else {
+                                res.json({
+                                    status: '0',
+                                    msg: 'suc2',
+                                    result: ''
+                                })
+                            }
+                        })
 
                 }
             }
@@ -462,6 +524,7 @@ router.post('/addressAdd', function (req, res) {
                 })
             } else {
                 let addressList = doc.addressList
+
                 if (isDefault) {
                     addressList.forEach((item, i) => {
                         item.isDefault = false;
@@ -474,21 +537,27 @@ router.post('/addressAdd', function (req, res) {
                     streetName,
                     isDefault: isDefault
                 })
-                doc.save((err1, doc1) => {
-                    if (err1) {
-                        res.json({
-                            status: '1',
-                            msg: err1.message,
-                            result: ''
-                        })
-                    } else {
-                        res.json({
-                            status: '0',
-                            msg: 'suc',
-                            result: ''
-                        })
-                    }
-                })
+                User.update({
+                    userId: userId
+                }, {
+                        addressList: addressList
+                    }, (err, doc) => {
+                        if (err) {
+                            res.json({
+                                status: '1',
+                                msg: err.message,
+                                result: ''
+                            });
+                        } else {
+                            res.json({
+                                status: '0',
+                                msg: '',
+                                result: 'suc'
+                            });
+                        }
+                    })
+                // doc.addressList=addressList
+                // User.updateOne(doc)
             }
         })
     } else {
@@ -507,26 +576,26 @@ router.post('/addressDel', function (req, res) {
         User.update({
             userId
         }, {
-            $pull: {
-                'addressList': {
-                    'addressId': addressId
+                $pull: {
+                    'addressList': {
+                        'addressId': addressId
+                    }
                 }
-            }
-        }, (err, doc) => {
-            if (err) {
-                res.json({
-                    status: '1',
-                    msg: err.message,
-                    result: ''
-                });
-            } else {
-                res.json({
-                    status: '0',
-                    msg: '',
-                    result: 'suc'
-                });
-            }
-        })
+            }, (err, doc) => {
+                if (err) {
+                    res.json({
+                        status: '1',
+                        msg: err.message,
+                        result: ''
+                    });
+                } else {
+                    res.json({
+                        status: '0',
+                        msg: '',
+                        result: 'suc'
+                    });
+                }
+            })
     } else {
         res.json({
             status: '1',
@@ -540,16 +609,16 @@ router.post('/addressDel', function (req, res) {
 // 生成订单
 router.post('/payMent', async (req, res) => {
     try {
-        let {addressId, orderTotal, productId, productNum} = req.body
-        const {userId} = req.cookies
+        let { addressId, orderTotal, productId, productNum } = req.body
+        const { userId } = req.cookies
         // 是否登录
         if (userId) {
             // 需要地址id 以及 订单价格
             if (addressId && orderTotal) {
-                let userDoc = await User.findOne({userId});
+                let userDoc = await User.findOne({ userId });
                 let userAddress = {},
                     goodsList = [];
-                const {addressList, cartList} = userDoc
+                const { addressList, cartList } = userDoc
                 // 地址信息
                 addressList.forEach(item => {
                     if (item.addressId == addressId) {
@@ -574,7 +643,7 @@ router.post('/payMent', async (req, res) => {
                 };
 
                 if (productId && productNum) {
-                    let goodsDoc = await Good.findOne({productId})
+                    let goodsDoc = await Good.findOne({ productId })
 
                     let item = {
                         productId: goodsDoc.productId,
@@ -601,24 +670,28 @@ router.post('/payMent', async (req, res) => {
                 function cb() {
                     userDoc.cartList = [];
                     userDoc.orderList.push(order);
-                    userDoc.save(function (err1, doc1) {
-                        if (err1) {
-                            res.json({
-                                status: 1,
-                                msg: err.message,
-                                result: ''
-                            });
-                        } else { // 保存
-                            res.json({
-                                status: 0,
-                                msg: '',
-                                result: {
-                                    orderId: order.orderId,
-                                    orderTotal: order.orderTotal
-                                }
-                            });
-                        }
-                    });
+                    User.update({
+                        userId: userId
+                    }, {
+                            orderList: userDoc.orderList
+                        }, (err, doc) => {
+                            if (err) {
+                                res.json({
+                                    status: '1',
+                                    msg: err.message,
+                                    result: ''
+                                });
+                            } else {
+                                res.json({
+                                    status: 0,
+                                    msg: '',
+                                    result: {
+                                        orderId: order.orderId,
+                                        orderTotal: order.orderTotal
+                                    }
+                                });
+                            }
+                        })
                 }
 
             } else {
@@ -647,10 +720,10 @@ router.post('/payMent', async (req, res) => {
 })
 // 查询订单
 router.post('/orderList', async (req, res) => {
-    const {userId} = req.cookies
+    const { userId } = req.cookies
     if (userId) {
         try {
-            const doc = await User.findOne({userId})
+            const doc = await User.findOne({ userId })
             if (doc) {
                 let orderList = doc.orderList,
                     msg = 'suc';
@@ -684,7 +757,7 @@ router.post('/delOrder', function (req, res) {
         orderId = req.body.orderId;
     if (userId) {
         if (orderId) {
-            User.update({userId}, {
+            User.update({ userId }, {
                 $pull: {
                     'orderList': {
                         'orderId': orderId

@@ -99,15 +99,25 @@ router.post('/addCart',  async (req, res) => {
                     userDoc.cartList.push(doc)
                 }
 
-                userDoc.save( ()=> {
-                    // 保存成功
-                    res.json({
-                        status: 0,
-                        msg: '加入成功',
-                        result: 'suc'
-                    })
+                User.update({
+                    userId:userId
+                }, {
+                    cartList:userDoc.cartList
+                }, (err, doc) => {
+                    if (err) {
+                        res.json({
+                            status: '1',
+                            msg: err.message,
+                            result: ''
+                        });
+                    } else {
+                        res.json({
+                            status: '0',
+                            msg: '',
+                            result: 'suc'
+                        });
+                    }
                 })
-
             } else {
                 res.json({
                     status: 1,
@@ -301,6 +311,7 @@ router.get('/productHome', function (req, res) {
                     }
                 })
             })
+            //与抓取的数据对比
             Good.find({productId: {$in: pId}}, (goodsErr, goodsDoc) => {
                 if (goodsErr) {
                     res.json({
@@ -361,6 +372,54 @@ router.get('/productDet', function (req, res) {
             })
         }
     })
+})
+
+// 商品信息
+router.post('/productAdd', function (req, res) {
+    const data = req.body.msg;
+    data.productId='1000'+Math.floor((Math.random()*50000)+40000);
+    data.limit_num=100
+    data.stock=100;
+    try {
+        Good.insertMany(data,(erro,doc)=>{
+            res.json({
+                status: '0',
+                msg: '新增商品成功',
+                result: doc
+            })
+        })
+       
+    } catch (error) {
+        res.json({
+            status: '1',
+            msg: err.message,
+            result: ''
+        })
+    }
+   
+})
+
+router.post('/productDel', function (req, res) {
+    const data = req.body;
+    // var whereStr = {"name":'菜鸟教程'};
+    try {
+        //参数要齐
+        Good.findByIdAndRemove(data._id,{},(err, result)=>{
+            res.json({
+                status: '0',
+                msg: '删除成功',
+                result: ''
+            })
+        })
+       
+    } catch (error) {
+        res.json({
+            status: '1',
+            msg: err.message,
+            result: ''
+        })
+    }
+   
 })
 
 module.exports = router
